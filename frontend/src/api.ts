@@ -1,8 +1,11 @@
-// Local dev:           Vite proxies /api -> http://localhost:8000        (BASE="/api")
-// Combined deploy:     backend serves SPA + /api at same origin          (BASE="")
-// Separate deploy:     set VITE_API_URL=https://backend.example.com      (BASE=that URL)
-const _env = (import.meta as any).env?.VITE_API_URL;
-const BASE = _env !== undefined ? _env : "/api";
+// Dev (vite dev server): proxy /api -> http://localhost:8000  -> BASE="/api"
+// Prod (built bundle, same-origin):                            -> BASE=""
+// Separate deploy: set VITE_API_URL=https://backend.example.com
+const _env = (import.meta as any).env;
+const BASE =
+  _env?.VITE_API_URL !== undefined ? _env.VITE_API_URL
+  : _env?.PROD ? ""
+  : "/api";
 
 let _token: string | null = localStorage.getItem("token");
 
@@ -34,7 +37,7 @@ export function signup(username: string, password: string, role = "operator") {
   return req("/auth/signup", { method: "POST", body: JSON.stringify({ username, password, role }) });
 }
 export function getDemoUsers() {
-  return fetch("/api/auth/demo-users").then((r) => r.json());
+  return fetch(`${BASE}/auth/demo-users`).then((r) => r.json());
 }
 export function getMetrics() { return req("/metrics"); }
 export function getEvents(params: Record<string, any> = {}) {
