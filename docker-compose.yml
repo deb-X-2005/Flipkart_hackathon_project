@@ -1,0 +1,58 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: event-traffic-backend:latest
+    container_name: event-traffic-backend
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env first}
+      CRYPTO_KEY:  ${CRYPTO_KEY:?set CRYPTO_KEY in .env first}
+      LLM_MODE:    ${LLM_MODE:-ollama}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:1.7b}
+      DATAGOV_API_KEY: ${DATAGOV_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    volumes:
+      - ./logs:/app/logs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [traffic]
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: event-traffic-frontend:latest
+    container_name: event-traffic-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [traffic]
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+  # Optional: bundled Ollama. Enable with: `docker compose --profile bundled up`
+  ollama:
+    profiles: [bundled]
+    image: ollama/ollama:latest
+    container_name: event-traffic-ollama
+    volumes:
+      - ollama-data:/root/.ollama
+    networks: [traffic]
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+networks:
+  traffic:
+    driver: bridge
+
+volumes:
+  ollama-data:

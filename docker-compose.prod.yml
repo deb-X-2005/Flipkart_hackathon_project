@@ -1,0 +1,39 @@
+# Production overlay. Adds Caddy with automatic Let's Encrypt TLS.
+# Usage:
+#   1. point DNS A-record DOMAIN -> server IP
+#   2. set DOMAIN, LE_EMAIL in .env
+#   3. docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  backend:
+    # Don't expose backend directly on public; Caddy proxies to it
+    ports: !reset []
+    expose: ["8000"]
+    environment:
+      PYTHONUNBUFFERED: "1"
+    restart: always
+
+  frontend:
+    ports: !reset []
+    expose: ["80"]
+    restart: always
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: event-traffic-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env for prod, e.g. traffic.example.gov.in}
+      LE_EMAIL: ${LE_EMAIL:?set LE_EMAIL for Let's Encrypt}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [traffic]
+    depends_on: [backend, frontend]
+    restart: always
+
+volumes:
+  caddy-data:
+  caddy-config:

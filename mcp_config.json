@@ -1,0 +1,13 @@
+{
+  "_comment": "Drop the inner mcpServers block into Claude Desktop's claude_desktop_config.json. Path: %APPDATA%\\Claude\\claude_desktop_config.json on Windows.",
+  "mcpServers": {
+    "event-traffic": {
+      "command": "C:\\Users\\KIIT\\Desktop\\AI\\Projects\\Flipkart_hackathon_project\\venv\\Scripts\\python.exe",
+      "args": ["-m", "src.mcp_server.server"],
+      "cwd": "C:\\Users\\KIIT\\Desktop\\AI\\Projects\\Flipkart_hackathon_project",
+      "env": {
+        "PYTHONPATH": "C:\\Users\\KIIT\\Desktop\\AI\\Projects\\Flipkart_hackathon_project"
+      }
+    }
+  }
+}

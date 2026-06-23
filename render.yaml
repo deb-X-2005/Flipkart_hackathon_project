@@ -1,0 +1,40 @@
+# Render blueprint. Deploy with: https://render.com/deploy?repo=<your-repo-url>
+# Notes:
+#  - Ollama doesn't run on Render free tier. Set LLM_MODE=openrouter (or openai/anthropic) + provide an API key.
+#  - Free instances sleep after 15 min idle. First request after sleep takes ~30 s.
+#  - Make sure data/processed/, data/rag/, models/ are committed (we COPY them in Dockerfile).
+services:
+  - type: web
+    name: event-traffic-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: CRYPTO_KEY
+        sync: false               # paste a Fernet key in Render dashboard
+      - key: LLM_MODE
+        value: openrouter         # change to openai/anthropic if you prefer
+      - key: OPENROUTER_API_KEY
+        sync: false               # paste your key in Render dashboard
+      - key: OPENROUTER_MODEL
+        value: anthropic/claude-sonnet-4.5
+      - key: CORS_ORIGINS
+        sync: false               # set to your frontend URL once deployed
+
+  - type: web
+    name: event-traffic-frontend
+    runtime: static
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    rootDir: ./frontend
+    envVars:
+      - key: VITE_API_URL
+        sync: false               # set to https://event-traffic-backend.onrender.com once backend is up
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

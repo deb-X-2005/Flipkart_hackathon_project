@@ -1,0 +1,31 @@
+{$DOMAIN} {
+    tls {$LE_EMAIL}
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        -Server
+    }
+
+    # Backend API
+    @api path /api/* /docs /openapi.json /metrics-prom
+    handle @api {
+        uri strip_prefix /api
+        reverse_proxy backend:8000
+    }
+
+    # Frontend SPA (nginx serving /usr/share/nginx/html)
+    handle {
+        reverse_proxy frontend:80
+    }
+
+    encode gzip zstd
+    log {
+        output file /data/access.log
+        format json
+    }
+}
