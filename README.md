@@ -1,3 +1,14 @@
+---
+title: Event Traffic Forecasting Karnataka
+emoji: 🚦
+colorFrom: indigo
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+short_description: Event-driven road-closure forecasting for Bengaluru
+---
+
 # Event-Driven Traffic Congestion Forecasting
 
 Predicts event-driven traffic impact for Karnataka (Bengaluru data shipped). Wires together:

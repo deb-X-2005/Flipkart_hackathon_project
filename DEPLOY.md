@@ -1,90 +1,109 @@
-# Deploy / Public URL
+# Deploy — get a public URL
 
-Three paths, in order of friction. Pick whichever matches your submission window.
+**Recommended:** Hugging Face Spaces (Docker) — free, 16 GB RAM, always-on, git-based, no credit card.
 
 ---
 
-## Path A — Instant tunnel (60 seconds, free, requires your laptop on)
+## Recommended: Hugging Face Spaces (15 min, free, always-on)
 
-Gets you a `https://*.trycloudflare.com` URL that works in any browser. No signup.
+Result: a permanent URL like `https://<your-username>-event-traffic-forecasting.hf.space` you can paste in your submission.
 
-**Install cloudflared (one-time):**
+### Prereqs
+- GitHub repo with this code already pushed (Path B in section "Other options" if you haven't)
+- A free Hugging Face account: https://huggingface.co/join
+- An LLM key. **Recommended: OpenRouter** ($1 free credit on signup, plenty for the demo): https://openrouter.ai
 
-Windows:
+### Steps
+
+1. Go to https://huggingface.co/new-space
+2. Fill in:
+   - **Owner:** your username
+   - **Space name:** `event-traffic-forecasting` (or anything)
+   - **License:** MIT (or whatever you like)
+   - **Space SDK:** **Docker** → select **Blank** template
+   - **Hardware:** CPU basic (free)
+   - **Public**
+   - Click **Create Space**
+
+3. The Space is now empty. Push our GitHub code to it as a second remote:
+   ```powershell
+   git remote add hf https://huggingface.co/spaces/<your-username>/event-traffic-forecasting
+   git push hf main
+   ```
+   When prompted for password, paste an HF **access token** (https://huggingface.co/settings/tokens → New token, role=Write).
+
+4. The Space starts building immediately. While it builds, set the secrets:
+   In your Space → **Settings** → **Variables and secrets** → **New secret** for each:
+
+   | Name | Value |
+   |---|---|
+   | `AUTH_SECRET` | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+   | `CRYPTO_KEY`  | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+   | `LLM_MODE`    | `openrouter` |
+   | `OPENROUTER_API_KEY` | from openrouter.ai (starts with `sk-or-...`) |
+   | `OPENROUTER_MODEL`   | `anthropic/claude-sonnet-4.5` (or `meta-llama/llama-3.3-70b-instruct` for cheaper) |
+
+5. After secrets are set, click **Restart** on the Space.
+
+6. Wait for build (~10 min the first time — installs torch, sentence-transformers, catboost). When status is green:
+   - Click the Space URL at the top
+   - Sign in as `admin / admin123` to test (these demo accounts are auto-seeded)
+   - Run a query → first chat call hits OpenRouter, takes ~3-5 s
+
+That URL is what goes in your hackathon submission.
+
+### Updating after deploy
+Every push to GitHub `main` won't auto-deploy to HF (separate remote). To redeploy:
+```powershell
+git push hf main
+```
+
+### Common pitfalls
+- **Build fails on PyTorch / OOM** — HF free CPU has 16 GB which is fine. If it still OOMs, switch the embedding model to OpenAI embeddings (smaller footprint).
+- **502 on /chat** — `OPENROUTER_API_KEY` wrong or balance $0. Click the LLM badge in the deployed app → **Test key** with your real key (admin role).
+- **First request slow** — HF Spaces hibernate compute occasionally on free tier; cold start ~30 s. Subsequent requests are fast.
+
+---
+
+## Other options
+
+### Cloudflare Tunnel — instant, free, but only while your laptop is on
+
 ```powershell
 winget install cloudflare.cloudflared
-```
-
-Mac:
-```bash
-brew install cloudflare/cloudflare/cloudflared
-```
-
-Linux: download from https://github.com/cloudflare/cloudflared/releases
-
-**Run (with the app already up locally):**
-
-```powershell
-# Windows
 .\scripts\tunnel.ps1
 ```
+
+Prints a `https://*.trycloudflare.com` URL. Stays alive only while the tunnel + backend + frontend are running. Not suitable if judges hit it later — your machine has to be on.
+
+### Render — free tier, 512 MB
+
 ```bash
-# Mac / Linux
-./scripts/tunnel.sh
+# render.yaml is already in the repo, connect it via dashboard
 ```
 
-Cloudflared prints a public URL like `https://random-words.trycloudflare.com` — that's what goes in your submission.
+Render's 512 MB is **tight** with this ML stack — sentence-transformers + PyTorch may OOM. If it works, you get a permanent URL. Free tier sleeps after 15 min idle.
 
-**Caveat:** judges can only reach it while your laptop is on with the tunnel + backend + frontend running.
-
----
-
-## Path B — Render free tier (15 minutes, free, always-on URL)
-
-Permanent URL like `https://event-traffic-frontend.onrender.com`. Sleeps after 15 min of inactivity, ~30 s cold start on first hit.
-
-1. Push the repo to GitHub.
-2. Sign up at https://render.com (free, GitHub login).
-3. Dashboard → **New** → **Blueprint** → select your repo.
-4. Render detects `render.yaml`. Click **Apply**.
-5. In each service's env tab fill in the `sync: false` blanks:
-   - **backend:** `CRYPTO_KEY` (generate: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`), `OPENROUTER_API_KEY` (sign up at openrouter.ai, $1 free credit), and after frontend deploys add its URL to `CORS_ORIGINS`.
-   - **frontend:** `VITE_API_URL=https://event-traffic-backend.onrender.com`
-6. Trigger a re-deploy on both. Submission URL is the frontend's URL.
-
-**Why Ollama isn't used here:** Render free instances don't have the RAM/disk for it. Backend defaults to OpenRouter; switch to OpenAI/Anthropic in the LLM settings modal once signed in.
-
----
-
-## Path C — Fly.io (10 minutes, free credit, always-on, faster cold start)
+### Railway — $5 free credit, 8 GB RAM
 
 ```bash
-flyctl launch --copy-config --no-deploy   # creates fly.toml from Dockerfile
-flyctl secrets set AUTH_SECRET="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
-flyctl secrets set CRYPTO_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
-flyctl secrets set LLM_MODE=openrouter OPENROUTER_API_KEY=...
+railway init
+railway up
+```
+
+### Fly.io — $5 free credit, fast cold starts
+
+```bash
+flyctl launch --copy-config --no-deploy
+flyctl secrets set AUTH_SECRET=... CRYPTO_KEY=... LLM_MODE=openrouter OPENROUTER_API_KEY=...
 flyctl deploy
 ```
 
-Frontend can ride on Vercel:
-```bash
-cd frontend && npx vercel --prod
-# set VITE_API_URL=https://<your-fly-app>.fly.dev in Vercel env
-```
-
 ---
 
-## Local-only demo (no public URL)
+## What you get from any deploy
 
-If you'll demo on your own laptop with judges in the room, skip all of the above — `docker compose up` (or just the two dev servers) is enough.
-
----
-
-## Which to pick?
-
-| Scenario | Pick |
-|---|---|
-| Judging in <2 hours, your laptop will be on | **A** (cloudflared) |
-| Judging spans days, permanent URL needed | **B** (Render) |
-| Already on Fly.io / want faster cold starts | **C** |
-| In-person demo only | local |
+- ✅ Frontend + backend at one URL (same origin — the React build is served by FastAPI's static mount in the combined Docker image)
+- ✅ All routes wired: `/auth/login`, `/auth/signup`, `/chat`, `/forecast`, `/realtime/*`, `/llm/*`
+- ✅ Demo accounts auto-seeded: `viewer/viewer123`, `operator/operator123`, `admin/admin123`
+- ❌ Ollama doesn't run on free hosts — use OpenRouter / OpenAI / Anthropic via the LLM Settings modal (admin role)
