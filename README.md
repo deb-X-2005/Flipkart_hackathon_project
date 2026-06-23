@@ -4,7 +4,7 @@ emoji: 🚦
 colorFrom: indigo
 colorTo: green
 sdk: docker
-app_port: 7860
+app_port: 8000
 pinned: false
 short_description: Event-driven road-closure forecasting for Bengaluru
 ---
